@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DPWH – Project Management Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav>
+    <div class="nav-brand">
+      <div class="nav-logo" id="logoContainer">
+         <img src="dpwh.png" alt="DPWH Logo" />
+      </div>
+      <div class="nav-title">
+        <h1>DPWH</h1>
+        <p>Project Management Dashboard</p>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab" onclick="showView('overview')">Overview</button>
+      <button class="nav-tab active" onclick="showView('dashboard')">Dashboard</button>
+      <button class="nav-tab" onclick="showView('projects')">Projects</button>
+      <button class="nav-tab" onclick="showView('members')">Members</button>
+    </div>
+    <div class="nav-right">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search projects..." id="globalSearch" oninput="handleSearch(this.value)"/>
+      </div>
+      <button class="btn-new" onclick="openNewProjectModal()">
+        <i class="fas fa-plus"></i> New Project
+      </button>
+      <div class="nav-icon-btn" onclick="showNotifications()">
+        <i class="fas fa-bell"></i>
+        <span class="badge" id="notifBadge">1</span>
+      </div>
+      <div class="avatar" onclick="showProfile()">A</div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="view" id="view-overview">
+      <div class="overview-hero">
+        <div>
+          <h2>DPWH Infrastructure Overview</h2>
+          <p>Department of Public Works and Highways — monitoring and managing national infrastructure projects across all regions of the Philippines.</p>
+        </div>
+        <div style="display:flex;gap:36px;">
+          <div class="overview-hero-stat"><div class="big" id="ov-total">6</div><div class="small">Total Projects</div></div>
+          <div class="overview-hero-stat"><div class="big" id="ov-budget">₱840M</div><div class="small">Total Budget</div></div>
+          <div class="overview-hero-stat"><div class="big" id="ov-done">1</div><div class="small">Completed</div></div>
+        </div>
+      </div>
+      <div class="overview-grid">
+        <div class="summary-table-card">
+          <h3>Project Summary by Status</h3>
+          <div id="overviewSummary"></div>
+        </div>
+        <div class="quick-links">
+          <h3>Quick Actions</h3>
+          <button class="quick-link-btn" onclick="openNewProjectModal()"><i class="fas fa-plus-circle"></i> Add New Project</button>
+          <button class="quick-link-btn" onclick="showView('dashboard')"><i class="fas fa-chart-pie"></i> View Dashboard</button>
+          <button class="quick-link-btn" onclick="showView('projects')"><i class="fas fa-folder-open"></i> Browse Projects</button>
+          <button class="quick-link-btn" onclick="exportCSV()"><i class="fas fa-file-export"></i> Export Registry (CSV)</button>
+          <button class="quick-link-btn" onclick="showToast('Generating report...','info')"><i class="fas fa-print"></i> Generate Report</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view active" id="view-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">Project Status Overview</div>
+          <div class="donut-wrap">
+            <svg class="donut-svg" viewBox="0 0 160 160" id="donutSvg"></svg>
+            <div class="donut-legend" id="donutLegend"></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Weekly Task Activity</div>
+          <div class="bar-chart" id="barChart"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Project Progress Tracker</div>
+          <div class="tracker-list" id="trackerList"></div>
+        </div>
+      </div>
+      <div class="registry-card">
+        <div class="registry-header">
+          <h2>Active Project Registry</h2>
+          <p>Monitor and manage all infrastructure projects</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Project Details</th><th>Status</th>
+              <th>Due Date</th><th>Progress</th><th>Budget</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="projectTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="view" id="view-projects">
+      <div class="projects-header">
+        <h2>All Projects</h2>
+        <div class="filter-bar">
+          <select class="filter-select" id="statusFilter" onchange="renderProjectCards()">
+            <option value="">All Statuses</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="On Hold">On Hold</option>
+            <option value="Not Started">Not Started</option>
+          </select>
+          <button class="btn-new" onclick="openNewProjectModal()"><i class="fas fa-plus"></i> New Project</button>
+        </div>
+      </div>
+      <div class="projects-grid" id="projectsGrid"></div>
+    </div>
+
+    <div class="view" id="view-members">
+      <div class="projects-header">
+        <h2>Team Members</h2>
+      </div>
+      <div class="members-grid" id="membersGrid"></div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="projectModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">New Project</h3>
+        <button class="modal-close" onclick="closeModal('projectModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full"><label>Project Name</label><input type="text" id="f-name" placeholder="e.g. Highway Construction Phase 2"/></div>
+          <div class="form-group"><label>Location</label><input type="text" id="f-loc" placeholder="e.g. Metro Manila"/></div>
+          <div class="form-group"><label>Status</label>
+            <select id="f-status">
+              <option>In Progress</option><option>Completed</option><option>On Hold</option><option>Not Started</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Due Date</label><input type="date" id="f-due"/></div>
+          <div class="form-group"><label>Budget (₱M)</label><input type="number" id="f-budget" placeholder="e.g. 150"/></div>
+          <div class="form-group"><label>Progress (%)</label><input type="number" id="f-progress" min="0" max="100" placeholder="0–100"/></div>
+          <div class="form-group full"><label>Description</label><textarea id="f-desc" placeholder="Brief project description..."></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('projectModal')">Cancel</button>
+        <button class="btn-save" onclick="saveProject()">Save Project</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="viewModalTitle">Project Details</h3>
+        <button class="modal-close" onclick="closeModal('viewModal')">&times;</button>
+      </div>
+      <div class="view-modal-body" id="viewModalBody"></div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('viewModal')">Close</button>
+        <button class="btn-save" id="viewEditBtn">Edit Project</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal delete-modal">
+      <div class="modal-head">
+        <h3>Confirm Delete</h3>
+        <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+      </div>
+      <div class="delete-body">
+        <div class="delete-icon"><i class="fas fa-trash-alt"></i></div>
+        <h3>Delete Project?</h3>
+        <p id="deleteModalText">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('deleteModal')">Cancel</button>
+        <button class="btn-delete-confirm" id="confirmDeleteBtn">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
