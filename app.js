@@ -410,7 +410,7 @@ function refreshAll() {
 // ───────────────────────────────────────────────
 // SUPABASE CONFIGURATION
 // ───────────────────────────────────────────────
-const SUPABASE_URL = "https://pwzdccbjuoeqggqsbgsw/supabase.co"; 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3emRjY2JqdW9lcWdncXNiZ3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTEwMzEsImV4cCI6MjA5NTYyNzAzMX0.-zKbbSYx1Xp3dn54mLtIxJmy1-pitXzQV6CBplSR8so";
+const SUPABASE_URL = "https://pwzdccbjuoeqggqsbgsw.supabase.co"; 
+const SUPABASE_ANON_KEY = "sb_publishable_Rk31D1KrVpwxQ4nQWmXHuA_wRRVVy_S";
 // Initialize application runtime
 renderDashboard();
