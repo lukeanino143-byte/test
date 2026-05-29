@@ -38,12 +38,12 @@ const STATUS_COLORS = {
 
 // Default seed fallback if cloud table returns empty
 const MOCK_PROJECTS = [
-  { id:'#001', name:'Highway Construction Phase 1', location:'Metro Manila', status:'In Progress', due:'2026-06-15', progress:85, budget:125, desc:'Major highway expansion project connecting northern Metro Manila districts.' },
-  { id:'#002', name:'Bridge Repair Project', location:'Cebu City', status:'Completed', due:'2026-05-20', progress:100, budget:85, desc:'Structural rehabilitation of Mactan Bridge and connecting road.' },
-  { id:'#003', name:'Road Maintenance - District 5', location:'Davao', status:'In Progress', due:'2026-07-01', progress:45, budget:45, desc:'Regular maintenance and repaving of District 5 roads in Davao.' },
-  { id:'#004', name:'Flood Control System', location:'Quezon City', status:'Not Started', due:'2026-08-10', progress:0, budget:200, desc:'Installation of new flood mitigation infrastructure.' },
-  { id:'#005', name:'Drainage Improvement Project', location:'Pasig', status:'On Hold', due:'2026-06-30', progress:30, budget:65, desc:'Upgrade and expansion of drainage systems in Pasig City.' },
-  { id:'#006', name:'Coastal Road Expansion', location:'Cavite', status:'In Progress', due:'2026-09-15', progress:60, budget:320, desc:'Expansion of the coastal road connecting Manila Bay and Cavite province.' },
+  { id:'#001', name:'Highway Construction Phase 1', location:'Metro Manila', status:'In Progress', due:'2026-06-15', progress:85, budget:125, scope:'Major highway expansion project connecting northern Metro Manila districts.' },
+  { id:'#002', name:'Bridge Repair Project', location:'Cebu City', status:'Completed', due:'2026-05-20', progress:100, budget:85, scope:'Structural rehabilitation of Mactan Bridge and connecting road.' },
+  { id:'#003', name:'Road Maintenance - District 5', location:'Davao', status:'In Progress', due:'2026-07-01', progress:45, budget:45, scope:'Regular maintenance and repaving of District 5 roads in Davao.' },
+  { id:'#004', name:'Flood Control System', location:'Quezon City', status:'Not Started', due:'2026-08-10', progress:0, budget:200, scope:'Installation of new flood mitigation infrastructure.' },
+  { id:'#005', name:'Drainage Improvement Project', location:'Pasig', status:'On Hold', due:'2026-06-30', progress:30, budget:65, scope:'Upgrade and expansion of drainage systems in Pasig City.' },
+  { id:'#006', name:'Coastal Road Expansion', location:'Cavite', status:'In Progress', due:'2026-09-15', progress:60, budget:320, scope:'Expansion of the coastal road connecting Manila Bay and Cavite province.' },
 ];
 
 // ── CLOUD SYNC: SUPABASE NETWORK CALLS ──
@@ -315,7 +315,7 @@ function openEditModal(id) {
   document.getElementById('f-due').value = p.due || '';
   document.getElementById('f-budget').value = p.budget;
   document.getElementById('f-progress').value = p.progress;
-  document.getElementById('f-desc').value = p.desc || '';
+  document.getElementById('f-desc').value = p.scope || p.desc || '';
   openModal('projectModal');
 }
 
@@ -329,9 +329,10 @@ async function saveProject() {
   let status = document.getElementById('f-status').value;
   if (rawProgress === 100) status = 'Completed';
 
-  // Generate unique timestamp-based ID key if creating a brand new project
+  // Generate clean unique key if creating a brand new item
   const targetId = editingId || '#' + Date.now().toString().slice(-3);
 
+  // Payload structure maps description window output straight into the database table 'scope' column
   const proj = {
     id: targetId,
     name, 
@@ -340,7 +341,7 @@ async function saveProject() {
     due: document.getElementById('f-due').value || null,
     progress: rawProgress,
     budget: parseInt(document.getElementById('f-budget').value)||0,
-    desc: document.getElementById('f-desc').value.trim(),
+    scope: document.getElementById('f-desc').value.trim(), 
   };
 
   try {
@@ -362,7 +363,7 @@ async function saveProject() {
 
     showToast(editingId ? 'Project updated successfully' : 'Project added successfully', 'success');
     closeModal('projectModal');
-    fetchFromSupabase(); // Instantly pull down fresh data state from cloud
+    fetchFromSupabase(); // Instantly pull down fresh clean dataset arrays
   } catch (err) {
     console.error(err);
     showToast("Failed to sync structural item with cloud server.", "error");
@@ -386,7 +387,7 @@ function openViewModal(id) {
     </div>
     <div class="view-section">
       <h4>Description</h4>
-      <p style="font-size:13px;line-height:1.6">${p.desc||'No description provided.'}</p>
+      <p style="font-size:13px;line-height:1.6">${p.scope || p.desc || 'No description provided.'}</p>
     </div>
     <div class="view-section" style="margin-bottom:0">
       <h4>Progress</h4>
