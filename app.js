@@ -1,6 +1,6 @@
 // ── CONFIGURATION & CREDENTIALS ──
 const SUPABASE_URL = "https://pwzdccbjuoeqggqsbgsw.supabase.co"; 
-const SUPABASE_ANON_KEY = "sb_publishable_Rk31D1KrVpwxQ4nQWmXHuA_wRRVVy_S";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3emRjY2JqdW9lcWdncXNiZ3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTEwMzEsImV4cCI6MjA5NTYyNzAzMX0.-zKbbSYx1Xp3dn54mLtIxJmy1-pitXzQV6CBplSR8so";
 
 const HEADERS = {
   "apikey": SUPABASE_ANON_KEY,
@@ -36,19 +36,18 @@ const STATUS_COLORS = {
   'Not Started':  '#9e9e9e'
 };
 
-// Default seed fallback if cloud table returns empty
+// Cleaned Web-Safe IDs (Removed the '#' symbol to prevent URL breakage)
 const MOCK_PROJECTS = [
-  { id:'#001', name:'Highway Construction Phase 1', location:'Metro Manila', status:'In Progress', due:'2026-06-15', progress:85, budget:125, scope:'Major highway expansion project connecting northern Metro Manila districts.' },
-  { id:'#002', name:'Bridge Repair Project', location:'Cebu City', status:'Completed', due:'2026-05-20', progress:100, budget:85, scope:'Structural rehabilitation of Mactan Bridge and connecting road.' },
-  { id:'#003', name:'Road Maintenance - District 5', location:'Davao', status:'In Progress', due:'2026-07-01', progress:45, budget:45, scope:'Regular maintenance and repaving of District 5 roads in Davao.' },
-  { id:'#004', name:'Flood Control System', location:'Quezon City', status:'Not Started', due:'2026-08-10', progress:0, budget:200, scope:'Installation of new flood mitigation infrastructure.' },
-  { id:'#005', name:'Drainage Improvement Project', location:'Pasig', status:'On Hold', due:'2026-06-30', progress:30, budget:65, scope:'Upgrade and expansion of drainage systems in Pasig City.' },
-  { id:'#006', name:'Coastal Road Expansion', location:'Cavite', status:'In Progress', due:'2026-09-15', progress:60, budget:320, scope:'Expansion of the coastal road connecting Manila Bay and Cavite province.' },
+  { id:'001', name:'Highway Construction Phase 1', location:'Metro Manila', status:'In Progress', due:'2026-06-15', progress:85, budget:125, scope:'Major highway expansion project connecting northern Metro Manila districts.' },
+  { id:'002', name:'Bridge Repair Project', location:'Cebu City', status:'Completed', due:'2026-05-20', progress:100, budget:85, scope:'Structural rehabilitation of Mactan Bridge and connecting road.' },
+  { id:'003', name:'Road Maintenance - District 5', location:'Davao', status:'In Progress', due:'2026-07-01', progress:45, budget:45, scope:'Regular maintenance and repaving of District 5 roads in Davao.' },
+  { id:'004', name:'Flood Control System', location:'Quezon City', status:'Not Started', due:'2026-08-10', progress:0, budget:200, scope:'Installation of new flood mitigation infrastructure.' },
+  { id:'005', name:'Drainage Improvement Project', location:'Pasig', status:'On Hold', due:'2026-06-30', progress:30, budget:65, scope:'Upgrade and expansion of drainage systems in Pasig City.' },
+  { id:'006', name:'Coastal Road Expansion', location:'Cavite', status:'In Progress', due:'2026-09-15', progress:60, budget:320, scope:'Expansion of the coastal road connecting Manila Bay and Cavite province.' },
 ];
 
 // ── CLOUD SYNC: SUPABASE NETWORK CALLS ──
 
-// Fetch list from Supabase
 async function fetchFromSupabase() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=*`, { method: "GET", headers: HEADERS });
@@ -57,7 +56,6 @@ async function fetchFromSupabase() {
     const data = await res.json();
     
     if (data.length === 0) {
-      // Database is fresh, load the seed entries up to the cloud automatically
       for (const item of MOCK_PROJECTS) {
         await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
           method: "POST",
@@ -65,7 +63,7 @@ async function fetchFromSupabase() {
           body: JSON.stringify(item)
         });
       }
-      return await fetchFromSupabase(); // Reload from cloud once populated
+      return await fetchFromSupabase();
     }
     
     projects = data;
@@ -230,7 +228,7 @@ function renderTracker() {
 function renderTable(data) {
   document.getElementById('projectTableBody').innerHTML = data.map(p => `
     <tr>
-      <td class="id-cell">${p.id}</td>
+      <td class="id-cell">#${p.id}</td>
       <td><div class="proj-name">${p.name}</div><div class="proj-loc"><i class="fas fa-map-marker-alt" style="font-size:10px"></i>${p.location}</div></td>
       <td><span class="status-badge ${statusClass(p.status)}">${p.status}</span></td>
       <td>${formatDate(p.due)}</td>
@@ -251,7 +249,7 @@ function renderProjectCards() {
   document.getElementById('projectsGrid').innerHTML = data.map(p => `
     <div class="proj-card">
       <div class="proj-card-top">
-        <span class="proj-card-id">${p.id}</span>
+        <span class="proj-card-id">#${p.id}</span>
         <span class="status-badge ${statusClass(p.status)}">${p.status}</span>
       </div>
       <div class="proj-card-name">${p.name}</div>
@@ -329,10 +327,9 @@ async function saveProject() {
   let status = document.getElementById('f-status').value;
   if (rawProgress === 100) status = 'Completed';
 
-  // Generate clean unique key if creating a brand new item
-  const targetId = editingId || '#' + Date.now().toString().slice(-3);
+  // Clean Web-Safe ID generation (Removed '#' to avoid broken URLs)
+  const targetId = editingId || 'proj-' + Date.now().toString().slice(-4);
 
-  // Payload structure maps description window output straight into the database table 'scope' column
   const proj = {
     id: targetId,
     name, 
@@ -363,7 +360,7 @@ async function saveProject() {
 
     showToast(editingId ? 'Project updated successfully' : 'Project added successfully', 'success');
     closeModal('projectModal');
-    fetchFromSupabase(); // Instantly pull down fresh clean dataset arrays
+    fetchFromSupabase(); 
   } catch (err) {
     console.error(err);
     showToast("Failed to sync structural item with cloud server.", "error");
@@ -377,7 +374,7 @@ function openViewModal(id) {
     <div class="view-section">
       <h4>Project Info</h4>
       <div class="view-row">
-        <div class="view-field"><label>ID</label><p>${p.id}</p></div>
+        <div class="view-field"><label>ID</label><p>#${p.id}</p></div>
         <div class="view-field"><label>Location</label><p>${p.location}</p></div>
         <div class="view-field"><label>Status</label><p><span class="status-badge ${statusClass(p.status)}">${p.status}</span></p></div>
         <div class="view-field"><label>Due Date</label><p>${formatDate(p.due)}</p></div>
@@ -406,7 +403,6 @@ function openDeleteModal(id) {
   openModal('deleteModal');
 }
 
-// ── CONNECTED CLOUD WRITES (DELETE) ──
 async function confirmDelete() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${encodeURIComponent(deletingId)}`, {
@@ -424,7 +420,6 @@ async function confirmDelete() {
   }
 }
 
-// ── CONNECTED CLOUD WRITES (MARK QUICK COMPLETE) ──
 async function markComplete(id) {
   const p = projects.find(x=>x.id===id); if(!p) return;
   if (p.status === 'Completed') { showToast('Already completed','info'); return; }
