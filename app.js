@@ -1,12 +1,16 @@
+// ── CONFIGURATION & CREDENTIALS ──
+const SUPABASE_URL = "https://pwzdccbjuoeqggqsbgsw.supabase.co"; 
+const SUPABASE_ANON_KEY = "sb_publishable_Rk31D1KrVpwxQ4nQWmXHuA_wRRVVy_S";
+
+const HEADERS = {
+  "apikey": SUPABASE_ANON_KEY,
+  "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+  "Content-Type": "application/json",
+  "Prefer": "return=representation"
+};
+
 // ── CORE REGISTRY DATASETS ──
-let projects = [
-  { id:'#001', name:'Highway Construction Phase 1', location:'Metro Manila', status:'In Progress', due:'2026-06-15', progress:85, budget:125, desc:'Major highway expansion project connecting northern Metro Manila districts.' },
-  { id:'#002', name:'Bridge Repair Project', location:'Cebu City', status:'Completed', due:'2026-05-20', progress:100, budget:85, desc:'Structural rehabilitation of Mactan Bridge and connecting road.' },
-  { id:'#003', name:'Road Maintenance - District 5', location:'Davao', status:'In Progress', due:'2026-07-01', progress:45, budget:45, desc:'Regular maintenance and repaving of District 5 roads in Davao.' },
-  { id:'#004', name:'Flood Control System', location:'Quezon City', status:'Not Started', due:'2026-08-10', progress:0, budget:200, desc:'Installation of new flood mitigation infrastructure.' },
-  { id:'#005', name:'Drainage Improvement Project', location:'Pasig', status:'On Hold', due:'2026-06-30', progress:30, budget:65, desc:'Upgrade and expansion of drainage systems in Pasig City.' },
-  { id:'#006', name:'Coastal Road Expansion', location:'Cavite', status:'In Progress', due:'2026-09-15', progress:60, budget:320, desc:'Expansion of the coastal road connecting Manila Bay and Cavite province.' },
-];
+let projects = [];
 
 let members = [
   { name: 'Girald Renz Gicaraya', initial: 'GG' },
@@ -19,7 +23,6 @@ let members = [
 
 let editingId = null;
 let deletingId = null;
-let nextIdNum = 7;
 
 const weekData = [
   { day:'Mon', val:13 }, { day:'Tue', val:19 }, { day:'Wed', val:16 }, { day:'Thu', val:22 },
@@ -33,6 +36,48 @@ const STATUS_COLORS = {
   'Not Started':  '#9e9e9e'
 };
 
+// Default seed fallback if cloud table returns empty
+const MOCK_PROJECTS = [
+  { id:'#001', name:'Highway Construction Phase 1', location:'Metro Manila', status:'In Progress', due:'2026-06-15', progress:85, budget:125, desc:'Major highway expansion project connecting northern Metro Manila districts.' },
+  { id:'#002', name:'Bridge Repair Project', location:'Cebu City', status:'Completed', due:'2026-05-20', progress:100, budget:85, desc:'Structural rehabilitation of Mactan Bridge and connecting road.' },
+  { id:'#003', name:'Road Maintenance - District 5', location:'Davao', status:'In Progress', due:'2026-07-01', progress:45, budget:45, desc:'Regular maintenance and repaving of District 5 roads in Davao.' },
+  { id:'#004', name:'Flood Control System', location:'Quezon City', status:'Not Started', due:'2026-08-10', progress:0, budget:200, desc:'Installation of new flood mitigation infrastructure.' },
+  { id:'#005', name:'Drainage Improvement Project', location:'Pasig', status:'On Hold', due:'2026-06-30', progress:30, budget:65, desc:'Upgrade and expansion of drainage systems in Pasig City.' },
+  { id:'#006', name:'Coastal Road Expansion', location:'Cavite', status:'In Progress', due:'2026-09-15', progress:60, budget:320, desc:'Expansion of the coastal road connecting Manila Bay and Cavite province.' },
+];
+
+// ── CLOUD SYNC: SUPABASE NETWORK CALLS ──
+
+// Fetch list from Supabase
+async function fetchFromSupabase() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=*`, { method: "GET", headers: HEADERS });
+    if (!res.ok) throw new Error("Could not fetch cloud entries");
+    
+    const data = await res.json();
+    
+    if (data.length === 0) {
+      // Database is fresh, load the seed entries up to the cloud automatically
+      for (const item of MOCK_PROJECTS) {
+        await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
+          method: "POST",
+          headers: HEADERS,
+          body: JSON.stringify(item)
+        });
+      }
+      return await fetchFromSupabase(); // Reload from cloud once populated
+    }
+    
+    projects = data;
+    refreshAll();
+  } catch (err) {
+    console.error(err);
+    showToast("Database loading failed. Running local safe-mode.", "error");
+    projects = MOCK_PROJECTS;
+    refreshAll();
+  }
+}
+
 // ── UTILITIES & GRAPHIC CONSTRUCTORS ──
 function statusClass(s) {
   return { 'In Progress':'status-inprogress', 'Completed':'status-completed', 'On Hold':'status-onhold', 'Not Started':'status-notstarted' }[s] || '';
@@ -44,7 +89,6 @@ function progressColor(p) {
   return '#ef4444';
 }
 function formatDate(d) { return d ? new Date(d + 'T00:00').toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) : '—'; }
-function newId() { const n = String(nextIdNum).padStart(3,'0'); nextIdNum++; return '#' + n; }
 function totalBudget() { return projects.reduce((a,p) => a + (p.budget||0), 0); }
 function countByStatus(s) { return projects.filter(p => p.status === s).length; }
 
@@ -62,7 +106,6 @@ function showView(name) {
   if (name === 'members')   renderMembers();
 }
 
-// ── MEMBERS VIEW RENDER LOGIC ──
 function renderMembers() {
   document.getElementById('membersGrid').innerHTML = members.map(m => `
     <div class="member-card">
@@ -74,7 +117,6 @@ function renderMembers() {
   `).join('');
 }
 
-// ── DASHBOARD AGGREGATED VIEWS ──
 function renderDashboard() {
   renderStats();
   renderDonut();
@@ -98,7 +140,6 @@ function renderStats() {
   `;
 }
 
-// ── FIXED DONUT SVG ENGINE ──
 function renderDonut() {
   const total = projects.length;
   if (total === 0) {
@@ -246,7 +287,6 @@ function renderOverview() {
     </div>`).join('');
 }
 
-// ── WINDOW INTERACTION MODAL BOX CLOSURES ──
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -279,38 +319,54 @@ function openEditModal(id) {
   openModal('projectModal');
 }
 
-// ── CREATE / UPDATE ACTIONS ──
-function saveProject() {
+// ── CONNECTED CLOUD WRITES (CREATE / UPDATE) ──
+async function saveProject() {
   const name = document.getElementById('f-name').value.trim();
   const loc  = document.getElementById('f-loc').value.trim();
   if (!name) { showToast('Project name is required','error'); return; }
   
   let rawProgress = Math.min(100, Math.max(0, parseInt(document.getElementById('f-progress').value)||0));
   let status = document.getElementById('f-status').value;
-  
-  if (rawProgress === 100) {
-    status = 'Completed';
-  }
+  if (rawProgress === 100) status = 'Completed';
+
+  // Generate unique timestamp-based ID key if creating a brand new project
+  const targetId = editingId || '#' + Date.now().toString().slice(-3);
 
   const proj = {
-    id: editingId || newId(),
-    name, location: loc || '—',
+    id: targetId,
+    name, 
+    location: loc || '—',
     status: status,
-    due: document.getElementById('f-due').value,
+    due: document.getElementById('f-due').value || null,
     progress: rawProgress,
     budget: parseInt(document.getElementById('f-budget').value)||0,
     desc: document.getElementById('f-desc').value.trim(),
   };
 
-  if (editingId) {
-    projects[projects.findIndex(x=>x.id===editingId)] = proj;
-    showToast('Project updated successfully','success');
-  } else {
-    projects.push(proj);
-    showToast('Project added successfully','success');
+  try {
+    let url = `${SUPABASE_URL}/rest/v1/projects`;
+    let method = "POST";
+
+    if (editingId) {
+      url = `${SUPABASE_URL}/rest/v1/projects?id=eq.${encodeURIComponent(editingId)}`;
+      method = "PATCH";
+    }
+
+    const res = await fetch(url, {
+      method: method,
+      headers: HEADERS,
+      body: JSON.stringify(proj)
+    });
+
+    if (!res.ok) throw new Error("Cloud write transaction rejected.");
+
+    showToast(editingId ? 'Project updated successfully' : 'Project added successfully', 'success');
+    closeModal('projectModal');
+    fetchFromSupabase(); // Instantly pull down fresh data state from cloud
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to sync structural item with cloud server.", "error");
   }
-  closeModal('projectModal');
-  refreshAll();
 }
 
 function openViewModal(id) {
@@ -349,20 +405,43 @@ function openDeleteModal(id) {
   openModal('deleteModal');
 }
 
-function confirmDelete() {
-  const p = projects.find(x=>x.id===deletingId);
-  projects = projects.filter(x=>x.id!==deletingId);
-  closeModal('deleteModal');
-  showToast(`"${p?.name}" deleted`,'error');
-  refreshAll();
+// ── CONNECTED CLOUD WRITES (DELETE) ──
+async function confirmDelete() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${encodeURIComponent(deletingId)}`, {
+      method: "DELETE",
+      headers: HEADERS
+    });
+    if (!res.ok) throw new Error("Cloud delete execution rejected.");
+    
+    closeModal('deleteModal');
+    showToast("Project entry successfully removed from cloud registry", "success");
+    fetchFromSupabase();
+  } catch (err) {
+    console.error(err);
+    showToast("Delete operation failed to execute in the cloud database.", "error");
+  }
 }
 
-function markComplete(id) {
+// ── CONNECTED CLOUD WRITES (MARK QUICK COMPLETE) ──
+async function markComplete(id) {
   const p = projects.find(x=>x.id===id); if(!p) return;
   if (p.status === 'Completed') { showToast('Already completed','info'); return; }
-  p.status = 'Completed'; p.progress = 100;
-  showToast(`"${p.name}" marked as complete`,'success');
-  refreshAll();
+  
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: HEADERS,
+      body: JSON.stringify({ status: "Completed", progress: 100 })
+    });
+    if (!res.ok) throw new Error("Status patch operation failed");
+    
+    showToast(`"${p.name}" marked as complete`, 'success');
+    fetchFromSupabase();
+  } catch (err) {
+    console.error(err);
+    showToast("Could not update completion metrics to cloud storage.", "error");
+  }
 }
 
 // ── FILTERS, SEARCH AND CSV DATA EXPORTS ──
@@ -383,7 +462,6 @@ function exportCSV() {
   showToast('CSV exported','success');
 }
 
-// ── ALERTS AND NOTIFICATIONS SYSTEM ──
 function showNotifications() {
   document.getElementById('notifBadge').style.display = 'none';
   showToast('1 project due soon: Drainage Improvement Project (Jun 30)','info');
@@ -399,7 +477,6 @@ function showToast(msg, type='info') {
   setTimeout(() => t.remove(), 3500);
 }
 
-// ── REFRESH ENGINE VIEW SYNC ──
 function refreshAll() {
   if (document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
   if (document.getElementById('view-projects').classList.contains('active'))  renderProjectCards();
@@ -407,10 +484,5 @@ function refreshAll() {
   if (document.getElementById('view-members').classList.contains('active'))   renderMembers();
 }
 
-// ───────────────────────────────────────────────
-// SUPABASE CONFIGURATION
-// ───────────────────────────────────────────────
-const SUPABASE_URL = "https://pwzdccbjuoeqggqsbgsw.supabase.co"; 
-const SUPABASE_ANON_KEY = "sb_publishable_Rk31D1KrVpwxQ4nQWmXHuA_wRRVVy_S";
-// Initialize application runtime
-renderDashboard();
+// ── RUNTIME ARCHITECTURE EXECUTION START ──
+fetchFromSupabase();
